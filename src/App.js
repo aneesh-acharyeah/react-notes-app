@@ -1,15 +1,40 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react'; // ✅ ADD useEffect
 import './App.css';
 import NoteForm from './components/NoteForm';
 
 function App() {
-  const [notes, setNotes] = useState([]);
+  // ✅ Load notes from LocalStorage when app starts
+  const [notes, setNotes] = useState(() => {
+    const saved = localStorage.getItem('my-notes');
+    return saved ? JSON.parse(saved) : [];
+  });
+
   const [filterCategory, setFilterCategory] = useState('');
   const [filterTag, setFilterTag] = useState('');
+  const [editNote, setEditNote] = useState(null);
+
+  // ✅ Save to LocalStorage whenever notes change
+  useEffect(() => {
+    localStorage.setItem('my-notes', JSON.stringify(notes));
+  }, [notes]);
 
   const handleAddNote = (note) => {
-    setNotes([note, ...notes]);
-  }
+    if (editNote) {
+      setNotes(notes.map(n => (n.id === note.id ? note : n)));
+      setEditNote(null);
+    } else {
+      setNotes([{ ...note, id: Date.now() }, ...notes]);
+    }
+  };
+
+  const handleDelete = (id) => {
+    setNotes(notes.filter(note => note.id !== id));
+  };
+
+  const handleEdit = (note) => {
+    setEditNote(note);
+  };
+
   const filteredNotes = notes.filter(note => {
     const categoryMatch = filterCategory === '' || note.category === filterCategory;
     const tagMatch = filterTag === '' || note.tags.includes(filterTag);
@@ -17,12 +42,14 @@ function App() {
   });
 
   const uniqueTags = [...new Set(notes.flatMap(note => note.tags))];
+
   return (
     <div className="App">
       <h1>📝 Notes App</h1>
-      <NoteForm onAddNote={handleAddNote} />
 
+      <NoteForm onAddNote={handleAddNote} editNote={editNote} />
 
+      {/* Filters */}
       <div className="filters">
         <select value={filterCategory} onChange={(e) => setFilterCategory(e.target.value)}>
           <option value="">All Categories</option>
@@ -39,17 +66,21 @@ function App() {
         </select>
       </div>
 
+      {/* Notes List */}
       <div className="notes-list">
-        {notes.length === 0 ? (
-          <p style={{ textAlign: 'center' }}>No notes yet</p>
-
+        {filteredNotes.length === 0 ? (
+          <p className='msg' style={{ textAlign: 'center' }}> No notes found.</p>
         ) : (
-          notes.map(note => (
-            <div className="note-card">
+          filteredNotes.map(note => (
+            <div className="note-card" key={note.id}>
               <h3>{note.title}</h3>
               <p>{note.content}</p>
-              <p><strong>Category:</strong> {note.category} </p>
+              <p><strong>Category:</strong> {note.category}</p>
               <p><strong>Tags:</strong> {note.tags.join(', ')}</p>
+              <div className="note-actions">
+                <button onClick={() => handleEdit(note)}>✏️ Edit</button>
+                <button onClick={() => handleDelete(note.id)}>🗑️ Delete</button>
+              </div>
             </div>
           ))
         )}
